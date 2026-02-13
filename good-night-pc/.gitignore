@@ -70,6 +70,4 @@ Thumbs.db
 # -----------------------------------------------------------------------------
 # Twoje skrypty pomocnicze (do dumpowania struktury)
 # -----------------------------------------------------------------------------
-dump_*.txt
-struktura_projektu.txt
-*_output.txt
+dump_proj_structure.txt
