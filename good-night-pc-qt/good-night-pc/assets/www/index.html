@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Moja Aplikacja</title>
+
+    <link rel="stylesheet" href="styles.css" />
+    <script type="text/javascript" src="qwebchannel.js"></script>
+    
+    <script>
+    'use strict';
+    var wsUri = "ws://localhost:12345";
+    window.loggedin = false;
+
+    window.onload = function() {
+        var socket = new WebSocket(wsUri);
+
+        socket.onclose = function() {
+            console.error("web channel closed");
+        };
+
+        socket.onerror = function(error) {
+            console.error("web channel error: " + error);
+        };
+
+
+socket.onopen = function() {
+    console.log("WebSocket połączony!");
+
+    // To jest kluczowe! Tworzymy kanał i przekazujemy mu nasz socket.
+    window.channel = new QWebChannel(socket, function(channel) {
+        // Pobieramy obiekt 'backend' (tę nazwę zarejestrowałeś w main.cpp)
+        window.cppBackend = channel.objects.backend;
+
+        // Przykładowe podpięcie pod sygnał:
+        window.cppBackend.counterChanged.connect(function() {
+            console.log("Licznik zmieniony! Nowa wartość: " + window.cppBackend.counter);
+            // Aktualizacja HTML:
+            document.querySelector('.counter').innerText = window.cppBackend.counter;
+        });
+
+        // Opcjonalnie: ustawienie jakiejś początkowej wartości
+        // window.cppBackend.setCounter(42);
+    });
+}
+
+
+
+
+    }
+
+    </script>
+
+</head>
+<body>
+
+    <div class='mobile-view'>
+        <div class='top-half'>
+            <h1 style='align-self: center'>Hello from html!</h1>
+            <h1 class='counter'>30</h1>
+        </div>
+
+        <div class='bottom-half'>
+            <p>Dolna połowa ekranu</p>
+        </div>
+
+    </div>
+
+</body>
+</html>

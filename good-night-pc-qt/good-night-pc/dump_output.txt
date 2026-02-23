@@ -1,0 +1,513 @@
+===============================
+Ścieżka do pliku: ./main.cpp
+
+Zawartość pliku:
+
+#include <QGuiApplication>
+#include <QHttpServer>
+#include <QQmlApplicationEngine>
+#include <QTcpServer>
+#include <QWebChannel>
+#include <QWebSocketServer>
+#include <QtWebView>
+
+#include "./backend/backend.h"
+#include "./frontend/websocketclientwrapper.h"
+
+int main(int argc, char *argv[])
+{
+    QGuiApplication app(argc, argv);
+    QtWebView::initialize();
+
+    //-----BACKEND--------
+
+    QWebSocketServer server(QStringLiteral("QWebChannel Standalone Example Server"),
+                            QWebSocketServer::NonSecureMode);
+    if (!server.listen(QHostAddress::LocalHost, 12345)) {
+        qFatal("Failed to open web socket server.");
+        return 1;
+    }
+
+    // wrap WebSocket clients in QWebChannelAbstractTransport objects
+    WebSocketClientWrapper clientWrapper(&server);
+
+    QWebChannel channel;
+    QObject::connect(&clientWrapper,
+                     &WebSocketClientWrapper::clientConnected,
+                     &channel,
+                     &QWebChannel::connectTo);
+
+    Backend backend(&app);
+    channel.registerObject(QStringLiteral("backend"), &backend);
+
+    //-------------------
+
+    //http server for host app gui
+    QHttpServer httpServer;
+
+    // Używamy ".*", co oznacza: wyłap absolutnie każde zapytanie URL
+    httpServer.route(".*", [](const QHttpServerRequest &request) {
+        QString path = request.url().path();
+
+        // Jeśli ktoś wchodzi na sam adres "127.0.0.1:8080/", dajmy mu domyślnie index.html
+        if (path == "/" || path == "") {
+            path = "/index.html";
+        }
+
+        // Budujemy poprawną ścieżkę do pliku w systemie zasobów Qt (QRC)
+        // Wynik np.: ":/assets/www/index.html"
+        QString qrcPath = ":/assets/www" + path;
+        QFile file(qrcPath);
+
+        if (file.open(QIODevice::ReadOnly)) {
+            // Proste rozpoznawanie typu pliku, żeby przeglądarka nie zwariowała
+            QString mimeType = "text/plain";
+            if (path.endsWith(".html"))
+                mimeType = "text/html";
+            else if (path.endsWith(".css"))
+                mimeType = "text/css";
+            else if (path.endsWith(".js"))
+                mimeType = "application/javascript";
+
+            return QHttpServerResponse(mimeType.toUtf8(), file.readAll());
+        }
+
+        // Jeśli pliku nie ma w Qt Resources (np. zapytanie o favicone)
+        return QHttpServerResponse(QHttpServerResponder::StatusCode::NotFound);
+    });
+
+    httpServer.route("/api/hello", []() {
+        QString textFromCpp = "Hello World form C++ backend!";
+        return QHttpServerResponse("text/plain", textFromCpp.toUtf8());
+    });
+
+    auto tcpserver = new QTcpServer();
+    if (!tcpserver->listen(QHostAddress::LocalHost, 8080) || !httpServer.bind(tcpserver)) {
+        delete tcpserver;
+        return -1;
+    }
+    //----------------------------
+
+    QQmlApplicationEngine engine;
+    QObject::connect(
+        &engine,
+        &QQmlApplicationEngine::objectCreationFailed,
+        &app,
+        []() { QCoreApplication::exit(-1); },
+        Qt::QueuedConnection);
+    engine.loadFromModule("good-night-pc", "Main");
+
+    return app.exec();
+}
+
+
+
+===============================
+Ścieżka do pliku: ./frontend/websockettransport.cpp
+
+Zawartość pliku:
+
+// Copyright (C) 2016 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com, author Milian Wolff <milian.wolff@kdab.com>
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
+
+#include "websockettransport.h"
+
+#include <QDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QWebSocket>
+
+/*!
+    \brief QWebChannelAbstractSocket implementation that uses a QWebSocket internally.
+
+    The transport delegates all messages received over the QWebSocket over its
+    textMessageReceived signal. Analogously, all calls to sendTextMessage will
+    be send over the QWebSocket to the remote client.
+*/
+
+/*!
+    Construct the transport object and wrap the given socket.
+
+    The socket is also set as the parent of the transport object.
+*/
+WebSocketTransport::WebSocketTransport(QWebSocket *socket)
+: QWebChannelAbstractTransport(socket)
+, m_socket(socket)
+{
+    connect(socket, &QWebSocket::textMessageReceived,
+            this, &WebSocketTransport::textMessageReceived);
+    connect(socket, &QWebSocket::disconnected,
+            this, &WebSocketTransport::deleteLater);
+}
+
+/*!
+    Destroys the WebSocketTransport.
+*/
+WebSocketTransport::~WebSocketTransport()
+{
+    m_socket->deleteLater();
+}
+
+/*!
+    Serialize the JSON message and send it as a text message via the WebSocket to the client.
+*/
+void WebSocketTransport::sendMessage(const QJsonObject &message)
+{
+    QJsonDocument doc(message);
+    m_socket->sendTextMessage(QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
+}
+
+/*!
+    Deserialize the stringified JSON messageData and emit messageReceived.
+*/
+void WebSocketTransport::textMessageReceived(const QString &messageData)
+{
+    QJsonParseError error;
+    QJsonDocument message = QJsonDocument::fromJson(messageData.toUtf8(), &error);
+    if (error.error) {
+        qWarning() << "Failed to parse text message as JSON object:" << messageData
+                   << "Error is:" << error.errorString();
+        return;
+    } else if (!message.isObject()) {
+        qWarning() << "Received JSON message that is not an object: " << messageData;
+        return;
+    }
+    emit messageReceived(message.object(), this);
+}
+
+
+
+===============================
+Ścieżka do pliku: ./frontend/websockettransport.h
+
+Zawartość pliku:
+
+// Copyright (C) 2016 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com, author Milian Wolff <milian.wolff@kdab.com>
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
+
+#ifndef WEBSOCKETTRANSPORT_H
+#define WEBSOCKETTRANSPORT_H
+
+#include <QWebChannelAbstractTransport>
+
+QT_BEGIN_NAMESPACE
+class QWebSocket;
+QT_END_NAMESPACE
+
+class WebSocketTransport : public QWebChannelAbstractTransport
+{
+    Q_OBJECT
+public:
+    explicit WebSocketTransport(QWebSocket *socket);
+    virtual ~WebSocketTransport();
+
+    void sendMessage(const QJsonObject &message) override;
+
+private slots:
+    void textMessageReceived(const QString &message);
+
+private:
+    QWebSocket *m_socket;
+};
+
+#endif // WEBSOCKETTRANSPORT_H
+
+
+
+===============================
+Ścieżka do pliku: ./frontend/frontend.h
+
+Zawartość pliku:
+
+#ifndef FRONTEND_H
+#define FRONTEND_H
+
+#endif // FRONTEND_H
+
+
+
+===============================
+Ścieżka do pliku: ./frontend/websocketclientwrapper.cpp
+
+Zawartość pliku:
+
+// Copyright (C) 2016 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com, author Milian Wolff <milian.wolff@kdab.com>
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
+
+#include "websocketclientwrapper.h"
+#include "websockettransport.h"
+
+#include <QWebSocketServer>
+
+/*!
+    \brief Wraps connected QWebSockets clients in WebSocketTransport objects.
+
+    This code is all that is required to connect incoming WebSockets to the WebChannel. Any kind
+    of remote JavaScript client that supports WebSockets can thus receive messages and access the
+    published objects.
+*/
+
+/*!
+    Construct the client wrapper with the given parent.
+
+    All clients connecting to the QWebSocketServer will be automatically wrapped
+    in WebSocketTransport objects.
+*/
+WebSocketClientWrapper::WebSocketClientWrapper(QWebSocketServer *server, QObject *parent)
+    : QObject(parent)
+    , m_server(server)
+{
+    connect(server, &QWebSocketServer::newConnection,
+            this, &WebSocketClientWrapper::handleNewConnection);
+}
+
+/*!
+    Wrap an incoming WebSocket connection in a WebSocketTransport object.
+*/
+void WebSocketClientWrapper::handleNewConnection()
+{
+    emit clientConnected(new WebSocketTransport(m_server->nextPendingConnection()));
+}
+
+
+
+===============================
+Ścieżka do pliku: ./frontend/frontend.cpp
+
+Zawartość pliku:
+
+
+
+
+===============================
+Ścieżka do pliku: ./frontend/websocketclientwrapper.h
+
+Zawartość pliku:
+
+// Copyright (C) 2016 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com, author Milian Wolff <milian.wolff@kdab.com>
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
+
+#ifndef WEBSOCKETCLIENTWRAPPER_H
+#define WEBSOCKETCLIENTWRAPPER_H
+
+#include <QObject>
+
+class WebSocketTransport;
+
+QT_BEGIN_NAMESPACE
+class QWebSocketServer;
+QT_END_NAMESPACE
+
+class WebSocketClientWrapper : public QObject
+{
+    Q_OBJECT
+
+public:
+    WebSocketClientWrapper(QWebSocketServer *server, QObject *parent = nullptr);
+
+signals:
+    void clientConnected(WebSocketTransport *client);
+
+private slots:
+    void handleNewConnection();
+
+private:
+    QWebSocketServer *m_server;
+};
+
+#endif // WEBSOCKETCLIENTWRAPPER_H
+
+
+
+===============================
+Ścieżka do pliku: ./backend/backend.h
+
+Zawartość pliku:
+
+#pragma once
+
+#include <QObject>
+
+class Backend : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(int counter READ counter WRITE setCounter NOTIFY counterChanged FINAL)
+public:
+    explicit Backend(QObject *parent = nullptr);
+
+    int counter();
+    void setCounter(int);
+
+signals:
+    void counterChanged();
+
+private:
+    int m_counter = 0;
+};
+
+
+
+===============================
+Ścieżka do pliku: ./backend/backend.cpp
+
+Zawartość pliku:
+
+#include "backend.h"
+
+Backend::Backend(QObject *parent)
+    : QObject(parent)
+{}
+
+int Backend::counter()
+{
+    return m_counter;
+}
+
+void Backend::setCounter(int counter)
+{
+    if (m_counter == counter)
+        return;
+
+    m_counter = counter;
+    emit counterChanged();
+}
+
+
+
+===============================
+Ścieżka do pliku: ./assets/www/styles.css
+
+Zawartość pliku:
+
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  /* --- TRYB JASNY (Domyślny) --- */
+  --backdrop-bg: #e0e0e0; /* Tło za "telefonem" (jasnoszare) */
+  --mobile-bg: #ffffff;   /* Tło samego "telefonu" (białe) */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* --- TRYB CIEMNY --- */
+    /* Tutaj ustalasz jak ciemne ma to być. Im wyższe wartości (np. #444), tym jaśniejszy szary. */
+    --backdrop-bg: #d0d0d0; /* Bardzo ciemne tło poza telefonem */
+    --mobile-bg: #242424;   /* Lekko jaśniejsze, przyjemne tło "telefonu" */
+  }
+}
+
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  outline: 1px solid red; /*<- pamiętaj, by to potem usunąć :) */
+}
+
+body {
+  /* body samo użyje odpowiedniej zmiennej w zależności od trybu systemu */
+  background-color: var(--backdrop-bg);
+
+  /* Przydatne płynne przejście przy zmianie trybu z jasnego na ciemny: */
+  transition: background-color 0.3s ease;
+}
+
+.mobile-view {
+  max-width: 450px;
+  min-height: 100vh;
+  margin: 0 auto;
+
+  /* Zamiast "white" na sztywno, używamy zmiennej: */
+  background-color: var(--mobile-bg);
+  box-shadow: 0px 0px 8px -3px rgba(0, 0, 0, 1);
+
+  /* Płynne przejście dla widoku mobilnego */
+  transition: background-color 0.3s ease;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.top-half{
+flex: 4;
+min-height: 0;
+
+/*childrens*/
+display: flex;
+flex-direction: column;
+justify-content: end;
+}
+
+.counter{
+/*margin-bottom: auto;*/
+/*margin-top: auto;*/
+  align-self: center
+}
+
+.bottom-half{
+flex: 6;
+min-height: 0;
+
+
+
+===============================
+Ścieżka do pliku: ./assets/www/index.html
+
+Zawartość pliku:
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Moja Aplikacja</title>
+
+    <link rel="stylesheet" href="styles.css" />
+    <script type="text/javascript" src="qwebchannel.js"></script>
+    
+    <script>
+    'use strict';
+    var wsUri = "ws://localhost:12345";
+    window.loggedin = false;
+
+    window.onload = function() {
+        var socket = new WebSocket(wsUri);
+
+        socket.onclose = function() {
+            console.error("web channel closed");
+        };
+
+        socket.onerror = function(error) {
+            console.error("web channel error: " + error);
+        };
+
+        socket.onopen = function() {
+
+        }
+
+
+
+
+    }
+
+    </script>
+
+</head>
+<body>
+
+    <div class='mobile-view'>
+        <div class='top-half'>
+            <h1 style='align-self: center'>Hello from html!</h1>
+            <h1 class='counter'>30</h1>
+        </div>
+
+        <div class='bottom-half'>
+            <p>Dolna połowa ekranu</p>
+        </div>
+
+    </div>
+
+</body>
+</html>
+
+
+

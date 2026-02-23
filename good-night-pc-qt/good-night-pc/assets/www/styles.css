@@ -1,0 +1,68 @@
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  /* --- TRYB JASNY (Domyślny) --- */
+  --backdrop-bg: #e0e0e0; /* Tło za "telefonem" (jasnoszare) */
+  --mobile-bg: #ffffff;   /* Tło samego "telefonu" (białe) */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* --- TRYB CIEMNY --- */
+    /* Tutaj ustalasz jak ciemne ma to być. Im wyższe wartości (np. #444), tym jaśniejszy szary. */
+    --backdrop-bg: #d0d0d0; /* Bardzo ciemne tło poza telefonem */
+    --mobile-bg: #242424;   /* Lekko jaśniejsze, przyjemne tło "telefonu" */
+  }
+}
+
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  outline: 1px solid red; /*<- pamiętaj, by to potem usunąć :) */
+}
+
+body {
+  /* body samo użyje odpowiedniej zmiennej w zależności od trybu systemu */
+  background-color: var(--backdrop-bg);
+
+  /* Przydatne płynne przejście przy zmianie trybu z jasnego na ciemny: */
+  transition: background-color 0.3s ease;
+}
+
+.mobile-view {
+  max-width: 450px;
+  min-height: 100vh;
+  margin: 0 auto;
+
+  /* Zamiast "white" na sztywno, używamy zmiennej: */
+  background-color: var(--mobile-bg);
+  box-shadow: 0px 0px 8px -3px rgba(0, 0, 0, 1);
+
+  /* Płynne przejście dla widoku mobilnego */
+  transition: background-color 0.3s ease;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.top-half{
+flex: 4;
+min-height: 0;
+
+/*childrens*/
+display: flex;
+flex-direction: column;
+justify-content: end;
+}
+
+.counter{
+/*margin-bottom: auto;*/
+/*margin-top: auto;*/
+  align-self: center
+}
+
+.bottom-half{
+flex: 6;
+min-height: 0;

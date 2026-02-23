@@ -12,7 +12,7 @@
 <body>
   <div class="app-column">
     <main class="container">
-      <h1>Welcome to Tauri</h1>
+      <h1>Good Night PC!</h1>
 
       <div class="row">
         <a href="https://tauri.app" target="_blank">
@@ -29,6 +29,20 @@
         <button type="submit">Greet</button>
       </form>
       <p id="greet-msg"></p>
+
+      <hr>
+
+      <div class="timer-setup" id="setup-view">
+        <p>Ustaw czas bezczynności (w minutach):</p>
+        <input type="number" id="minutes-input" value="30" min="1" />
+
+        <div class="row">
+          <button id="start-btn">START</button>
+        </div>
+      </div>
+
+      <hr>
+
     </main>
   </div>
 </body>

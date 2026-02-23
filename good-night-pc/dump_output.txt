@@ -88,6 +88,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rdev = "0.5.3"
 
 
 
@@ -140,17 +141,70 @@ fn main() {
 
 Zawartość pliku:
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::thread;
+use tauri::{Emitter, Manager};
+use rdev::{listen, Event, EventType};
+
+// --- STRUKTURA ZARZĄDZAJĄCA STANEM ---
+// Używamy atomowych typów, żeby nie bawić się w ciągłe .lock().unwrap()
+struct AppTimer {
+    running: AtomicBool,
+    duration_secs: AtomicU64,
+    // Przechowujemy czas ostatniej aktywności jako timestamp (u64)
+    last_activity: AtomicU64, 
+}
+
+impl AppTimer {
+    fn new() -> Self {
+        Self {
+            running: AtomicBool::new(false),
+            duration_secs: AtomicU64::new(0),
+            last_activity: AtomicU64::new(get_current_timestamp()),
+        }
+    }
+
+    fn reset_timer(&self) {
+        // To jest thread-safe bez mutexów!
+        self.last_activity.store(get_current_timestamp(), Ordering::Relaxed);
+    }
+
+    fn start(&self, seconds: u64) {
+        self.duration_secs.store(seconds, Ordering::Relaxed);
+        self.reset_timer();
+        self.running.store(true, Ordering::Relaxed);
+    }
+
+    fn stop(&self) {
+        self.running.store(false, Ordering::Relaxed);
+    }
+}
+
+// Pomocnicza funkcja do pobierania czasu jako liczby
+fn get_current_timestamp() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+fn start_timer(seconds: u64, state: tauri::State<Arc<AppTimer>>) {
+    println!("[RUST] Starting timer for {} seconds", seconds);
+    //state.start(seconds);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let timer_state = Arc::new(AppTimer::new());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, start_timer])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -163,9 +217,28 @@ pub fn run() {
 Zawartość pliku:
 
 const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
 
+let minutesInput;
+let startBtn;
 let greetInputEl;
 let greetMsgEl;
+
+async function startTimer() {
+  console.log("Starting timer...");
+  const minutes = parseInt(minutesInput.value, 10);
+  if (isNaN(minutes) || minutes <= 0) return;
+
+  const seconds = minutes * 60;
+
+  console.log(`Setting idle timer for ${seconds} seconds...`);
+
+  //call rust 
+  await invoke("start_timer", { seconds: seconds });
+  console.log("After invoking rust start_timer");
+
+
+}
 
 async function greet() {
   // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -173,12 +246,17 @@ async function greet() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  minutesInput = document.querySelector("#minutes-input");
+  startBtn = document.querySelector("#start-btn");
+
   greetInputEl = document.querySelector("#greet-input");
   greetMsgEl = document.querySelector("#greet-msg");
   document.querySelector("#greet-form").addEventListener("submit", (e) => {
     e.preventDefault();
     greet();
   });
+
+  startBtn.addEventListener("click", startTimer);
 });
 
 
@@ -188,32 +266,83 @@ window.addEventListener("DOMContentLoaded", () => {
 
 Zawartość pliku:
 
-.logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #ffe21c);
-}
+/* 1. Podstawowy Reset i zmienne (Zaleta A) */
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+  /* Kolory */
+  --phone-bg: #f6f6f6;
+  --text-color: #0f0f0f;
+  --backdrop-bg: #e0e0e0;
+  --shadow-color: rgba(255, 255, 255, 0.1); /* Jasny cień dla kontrastu na czarnym */
 }
 
-.container {
+/* Tryb Ciemny */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --phone-bg: #2f2f2f;
+    --text-color: #f6f6f6;
+  }
+}
+
+/* 2. Reset Box-Model (Zaleta B - kluczowe!) */
+* {
   margin: 0;
-  padding-top: 10vh;
+  padding: 0;
+  box-sizing: border-box;
+  /* dbg background*/
+  outline: 1px solid red;
+  /*background: rgba(0, 0, 0, 0.05); /* leciutko szare tło */
+}
+
+/* 3. Ustawienie tła i centrowanie Flexboxem (Zaleta B) */
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: var(--backdrop-bg); /* Czarne tło */
+  overflow: hidden; /* Blokujemy scrollowanie głównego okna */
+  
+  display: flex;
+  justify-content: center; /* Centrowanie w poziomie */
+  /* align-items: center;  <-- Odkomentuj to, jeśli wolisz, żeby "telefon" wisiał na środku */
+}
+
+/* 4. Wygląd telefonu (Połączenie najlepszych cech) */
+.app-column {
+  width: 400px;
+  max-width: 100%;
+  
+  /* "Po całej wysokości" - jak w zadaniu */
+  height: 100%; 
+  
+  background-color: var(--phone-bg);
+  color: var(--text-color);
+  
+  /* Scrollowanie wewnątrz kolumny */
+  overflow-y: auto;
+  overflow-x: hidden;
+  
+  /* Cień, żeby odróżnić od czarnego tła */
+  box-shadow: 0 0 50px var(--shadow-color);
+  position: relative;
+}
+
+/* 5. Reszta Twoich stylów kontenera */
+.container {
+  padding-top: 50px;
+  padding-bottom: 50px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   text-align: center;
+  min-height: 100%; /* Żeby treść ładnie się rozkładała */
+}
+
+.logo.vanilla:hover {
+  filter: drop-shadow(0 0 2em #ffe21c);
 }
 
 .logo {
@@ -221,6 +350,7 @@ Zawartość pliku:
   padding: 1.5em;
   will-change: filter;
   transition: 0.75s;
+  border: 1px solid blue;
 }
 
 .logo.tauri:hover {
@@ -310,31 +440,26 @@ Zawartość pliku:
 
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="styles.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
-    <script type="module" src="/main.js" defer></script>
-  </head>
 
-  <body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tauri App</title>
+  <script type="module" src="/main.js" defer></script>
+</head>
+
+<body>
+  <div class="app-column">
     <main class="container">
-      <h1>Welcome to Tauri</h1>
+      <h1>Good Night PC!</h1>
 
       <div class="row">
         <a href="https://tauri.app" target="_blank">
           <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
         </a>
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"
-          target="_blank"
-        >
-          <img
-            src="/assets/javascript.svg"
-            class="logo vanilla"
-            alt="JavaScript logo"
-          />
+        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
+          <img src="/assets/javascript.svg" class="logo vanilla" alt="JavaScript logo" />
         </a>
       </div>
       <p>Click on the Tauri logo to learn more about the framework</p>
@@ -344,9 +469,24 @@ Zawartość pliku:
         <button type="submit">Greet</button>
       </form>
       <p id="greet-msg"></p>
-    </main>
-  </body>
-</html>
 
+      <hr>
+
+      <div class="timer-setup" id="setup-view">
+        <p>Ustaw czas bezczynności (w minutach):</p>
+        <input type="number" id="minutes-input" value="30" min="1" />
+        
+        <div class="row">
+            <button id="start-btn">START</button>
+        </div>
+      </div>
+
+            <hr>
+            
+    </main>
+  </div>
+</body>
+
+</html>
 
 

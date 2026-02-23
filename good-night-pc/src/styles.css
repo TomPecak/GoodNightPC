@@ -25,6 +25,9 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  /* dbg background*/
+  outline: 1px solid red;
+  /*background: rgba(0, 0, 0, 0.05); /* leciutko szare tło */
 }
 
 /* 3. Ustawienie tła i centrowanie Flexboxem (Zaleta B) */
@@ -79,6 +82,7 @@ html, body {
   padding: 1.5em;
   will-change: filter;
   transition: 0.75s;
+  border: 1px solid blue;
 }
 
 .logo.tauri:hover {
