@@ -49,7 +49,9 @@ body {
 
 .top-half{
 flex: 4;
-min-height: 0;
+min-height: 40vh;
+max-height: 40vh;
+/*min-height: 0;*/
 
 /*childrens*/
 display: flex;
@@ -66,3 +68,25 @@ justify-content: end;
 .bottom-half{
 flex: 6;
 min-height: 0;
+}
+
+.normal-button{
+background-color: #4CAF50;
+color: white; /*text color*/
+padding: 10px 20px; /*odstepy wewnętrzne*/
+border: none;
+border-radius: 5px;
+cursor: pointer;
+font-size: 16px;
+transition: 0.1s;
+}
+
+.normal-button:hover {
+background-color: #45a049; /* Ciemniejszy zielony po najechaniu */
+}
+
+.normal-input{
+  padding: 8px;
+  width: 60%;
+  margin-bottom: 5px;
+}

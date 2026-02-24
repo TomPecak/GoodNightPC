@@ -22,8 +22,8 @@ qt_add_qml_module(appgood-night-pc
     SOURCES
     backend/backend.h
     backend/backend.cpp
-    SOURCES frontend/frontend.h
-    SOURCES frontend/frontend.cpp
+    SOURCES frontend/frontend_http_server.h
+    SOURCES frontend/frontend_http_server.cpp
     SOURCES frontend/websockettransport.h
     SOURCES frontend/websockettransport.cpp
     SOURCES frontend/websocketclientwrapper.h
