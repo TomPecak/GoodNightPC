@@ -1,7 +1,13 @@
+/*ikony material designa*/
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0');
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300&display=swap');
+
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Montserrat', Avenir,Inter,  Helvetica, Arial, sans-serif;
   /* --- TRYB JASNY (Domyślny) --- */
-  --backdrop-bg: #e0e0e0; /* Tło za "telefonem" (jasnoszare) */
+/*  --backdrop-bg: #e0e0e0;  Tło za "telefonem" (jasnoszare) */
+  --backdrop-bg: #00c38a;
   --mobile-bg: #ffffff;   /* Tło samego "telefonu" (białe) */
 }
 
@@ -19,7 +25,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  outline: 1px solid red; /*<- pamiętaj, by to potem usunąć :) */
+  /*outline: 1px solid red; <- pamiętaj, by to potem usunąć :) */
 }
 
 body {
@@ -32,10 +38,18 @@ body {
 
 .mobile-view {
   max-width: 450px;
-  min-height: 100vh;
-  margin: 0 auto;
+  height: calc(100vh - 20px);
+  width: calc(100vw - 20px);
+
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 10px;
+  margin-bottom: 10px;
+
+
 
   /* Zamiast "white" na sztywno, używamy zmiennej: */
+  border-radius: 1.0rem;
   background-color: var(--mobile-bg);
   box-shadow: 0px 0px 8px -3px rgba(0, 0, 0, 1);
 
@@ -56,13 +70,19 @@ max-height: 40vh;
 /*childrens*/
 display: flex;
 flex-direction: column;
-justify-content: end;
+justify-content: center;
 }
 
 .counter{
+font-family: 'Montserrat', sans-serif;   /* ← nadpisz na pewno */
+  font-weight: 200;
+font-size: 5.0rem;
+color: #221f20;
+/*width: 80%
+aspect-ratio: 1/1*/
 /*margin-bottom: auto;*/
 /*margin-top: auto;*/
-  align-self: center
+align-self: center
 }
 
 .bottom-half{
@@ -70,23 +90,61 @@ flex: 6;
 min-height: 0;
 }
 
+.button-row{
+display: flex;
+justify-content: center; /* Wyśrodkowanie w poziomie na ekranie */
+align-items: center;     /* Wyrównanie w linii poziomej */
+gap: 15px;               /* Automatyczny, idealny odstęp między przyciskami */
+margin-top: 20px;
+}
+
 .normal-button{
-background-color: #4CAF50;
+/*background-color: #4CAF50;*/
+background-color: #7643a1;
 color: white; /*text color*/
-padding: 10px 20px; /*odstepy wewnętrzne*/
+height: 50px;
+padding: 0px 25px; /*odstepy wewnętrzne*/
 border: none;
-border-radius: 5px;
+/*border-radius: 5px;*/
+border-radius: 50vmin;
 cursor: pointer;
 font-size: 16px;
+font-weight: bold;
 transition: 0.1s;
 }
 
 .normal-button:hover {
 background-color: #45a049; /* Ciemniejszy zielony po najechaniu */
+transform: scale(1.05);
+transition: 0.1s;
+}
+
+.circle-button{
+width: 50px;
+border-radius: 50vmin;
+color: #7643a1;
+background-color: white;
+border: 2px;
+border: 1px solid #7643a1;
+
+padding: 0;
+
+/* 2. Magia Flexboxa - centruje WSZYSTKO (tekst lub ikonę) idealnie na środku */
+display: inline-flex;
+align-items: center;
+justify-content: center;
 }
 
 .normal-input{
-  padding: 8px;
-  width: 60%;
+  font-family: 'Montserrat', sans-serif; 
+    font-weight: 200;
+font-size: 5.0rem;
+color: #221f20;
   margin-bottom: 5px;
+  field-sizing: content;
+  align-self: center;
+
+  border: none;     /* Usuwa główną ramkę */
+  outline: none; 
+  background: transparent;
 }

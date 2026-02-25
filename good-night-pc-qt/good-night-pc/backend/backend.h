@@ -18,7 +18,7 @@ public:
 
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
-    Q_INVOKABLE void reset();
+    Q_INVOKABLE bool reset();
     Q_INVOKABLE void addLap();
 
     Q_INVOKABLE bool setResetTimeSec(const QString &timeStr);

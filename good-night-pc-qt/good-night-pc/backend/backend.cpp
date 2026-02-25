@@ -42,11 +42,13 @@ void Backend::stop()
     }
 }
 
-void Backend::reset()
+bool Backend::reset()
 {
+    this->stop();
     setCounter(m_restartCounterValue);
     m_lapList.clear();
     emit lapListChanged();
+    return true;
 }
 
 void Backend::addLap()
@@ -57,12 +59,18 @@ void Backend::addLap()
 
 bool Backend::setResetTimeSec(const QString &timeStr)
 {
+    if (m_timer) {
+        if (m_timer->isActive())
+            return false;
+    }
+
     qDebug() << __PRETTY_FUNCTION__;
     bool ok;
     int parsedValue = timeStr.toInt(&ok);
 
     if (ok) {
         m_restartCounterValue = parsedValue;
+        setCounter(m_restartCounterValue);
         return true;
     }
 
