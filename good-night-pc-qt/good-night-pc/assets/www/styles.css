@@ -9,6 +9,10 @@
 /*  --backdrop-bg: #e0e0e0;  Tło za "telefonem" (jasnoszare) */
   --backdrop-bg: #00c38a;
   --mobile-bg: #ffffff;   /* Tło samego "telefonu" (białe) */
+
+  --circle-progress-size: 270px;
+  --circle-progress-thickness: 10px;
+  --circle-progress-percent: 20;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,11 +30,14 @@
   padding: 0;
   box-sizing: border-box;
   /*outline: 1px solid red; <- pamiętaj, by to potem usunąć :) */
+  -webkit-tap-highlight-color: transparent;  /* wyłacza podswietlenie prostokatu generowane przez android webview przy wciskaniu przycisku */
 }
 
 body {
   /* body samo użyje odpowiedniej zmiennej w zależności od trybu systemu */
-  background-color: var(--backdrop-bg);
+/*  background-color: var(--backdrop-bg);*/
+ background: linear-gradient(to right, #ff7e5f, #feb47b); 
+ /* background: linear-gradient(to right, #54b38b, #493f98); */
 
   /* Przydatne płynne przejście przy zmianie trybu z jasnego na ciemny: */
   transition: background-color 0.3s ease;
@@ -71,18 +78,81 @@ max-height: 40vh;
 display: flex;
 flex-direction: column;
 justify-content: center;
+align-items: center;
 }
 
-.counter{
-font-family: 'Montserrat', sans-serif;   /* ← nadpisz na pewno */
-  font-weight: 200;
-font-size: 5.0rem;
-color: #221f20;
-/*width: 80%
-aspect-ratio: 1/1*/
-/*margin-bottom: auto;*/
-/*margin-top: auto;*/
-align-self: center
+.skill{
+  width: var(--circle-progress-size);
+  height: var(--circle-progress-size);
+  position: relative;
+}
+
+.outer{
+  height: var(--circle-progress-size);
+  width: var(--circle-progress-size);
+  box-shadow: 6px 6px 10px -1px rgba(0, 0, 0, 0.15), -6px -6px 10px -1px rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+
+  padding: var(--circle-progress-thickness);
+}
+
+.inner{
+  height: 100%;
+  width: 100%;
+  border-radius: 50%;
+  box-shadow: inset 4px 4px 6px -1px rgba(0, 0, 0, 0.2), inset -4px -4px 6px -1px rgba(255, 255, 255, 0.7), -0.5px -0.5px 0px rgba(255, 255, 255, 1), 0.5px 0.5px 0px rgba(0, 0, 0, 0.15), 0px 12px 10px -10px rgba(0, 0, 0, 0.05);
+
+  /* childrens */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+circle{
+  fill: none;
+  stroke: url(#GradientColor);
+  stroke-width: var(--circle-progress-thickness);
+
+
+  /* DYNAMICZNE WYLICZANIE POZYCJI I PROMIENIA */
+  /* Środek to połowa szerokości */
+  cx: calc(var(--circle-progress-size) / 2);
+  cy: calc(var(--circle-progress-size) / 2);
+  /* Promień to: (Rozmiar całkowity - grubość paska) podzielone na 2 */
+  r: calc((var(--circle-progress-size) - var(--circle-progress-thickness)) / 2);
+
+  /* DYNAMICZNE WYPEŁNIENIE PROCENTOWE (dzięki pathLength="100" w HTML) */
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--circle-progress-percent));
+
+  /* Płynna animacja przy zmianie wartości procentowej */
+  transition: stroke-dashoffset 0.4s ease-out;
+}
+
+
+
+svg{
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--circle-progress-size);
+  height: var(--circle-progress-size);
+  transform: rotate(-90deg);
+
+  pointer-events: none; /*allow input to handle events, because svg is above inner*/
+}
+
+/* Ukrywa strzałki góra/dół dla input type="number" w Chrome, Safari, Edge */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* Ukrywa strzałki w Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
 }
 
 .bottom-half{
@@ -113,8 +183,16 @@ font-weight: bold;
 transition: 0.1s;
 }
 
+@media (hover: hover) {
 .normal-button:hover {
-background-color: #45a049; /* Ciemniejszy zielony po najechaniu */
+filter: brightness(1.3); /* Ciemniejszy zielony po najechaniu */
+/*transform: scale(1.05);*/
+transition: 0.1s;
+}
+}
+
+.normal-button:active {
+filter: brightness(1.3); /* Ciemniejszy zielony po najechaniu */
 transform: scale(1.05);
 transition: 0.1s;
 }

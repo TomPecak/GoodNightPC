@@ -7,11 +7,17 @@ Backend::Backend(QObject *parent)
 {
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, &Backend::onTimer);
+    updatePercent();
 }
 
 void Backend::onTimer()
 {
     setCounter(counter() - 1);
+}
+
+void Backend::updatePercent()
+{
+    setPercent((float(m_counter) / float(m_restartCounterValue)) * 100.0f);
 }
 
 int Backend::counter()
@@ -26,6 +32,22 @@ void Backend::setCounter(int counter)
 
     m_counter = counter;
     emit counterChanged();
+
+    updatePercent();
+}
+
+float Backend::percent()
+{
+    return m_percent;
+}
+
+void Backend::setPercent(float percent)
+{
+    if (percent == m_percent) {
+        return;
+    }
+    m_percent = percent;
+    emit percentChanged();
 }
 
 void Backend::start()

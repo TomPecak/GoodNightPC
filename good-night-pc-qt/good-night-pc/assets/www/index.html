@@ -69,20 +69,45 @@
                     window.cppBackend.counterChanged.connect(function () {
                         console.log("Licznik zmieniony! Nowa wartość: " + window.cppBackend.counter);
                         // Aktualizacja HTML:
-                        document.querySelector('.counter').innerText = window.cppBackend.counter;
                         document.getElementById('input-time').value = window.cppBackend.counter;
                     });
 
+                    window.cppBackend.percentChanged.connect(function(){
+                        document.documentElement.style.setProperty('--circle-progress-percent', window.cppBackend.percent);
+                    });
+
                     // Opcjonalnie: wczytanie początkowej wartości
-                    document.querySelector('.counter').innerText = window.cppBackend.counter;
                     document.getElementById('input-time').value = window.cppBackend.counter;
+                    document.documentElement.style.setProperty('--circle-progress-percent', window.cppBackend.percent);
 
                     //--------------------------------------------
                     //BUTTONS
                     //--------------------------------------------
                     document.getElementById('btn-start').addEventListener('click', function () {
+                        window.cppBackend.start();
+                    });
 
-                        var timeText = document.getElementById('input-time').value;
+                    document.getElementById('btn-stop').addEventListener('click', function () {
+                        window.cppBackend.stop();
+                    });
+
+                    document.getElementById('btn-reset').addEventListener('click', function () {
+                        window.cppBackend.reset();
+                        //document.getElementById('input-time').value = window.cppBackend.counter;
+                    });
+
+                    document.getElementById('btn-lap').addEventListener('click', function () {
+                        window.cppBackend.addLap();
+                    })
+
+                    document.getElementById('input-time').addEventListener('input', function(event){
+                        //zdarzenia zmian edycji inputa na bierzaco (realtime)
+                    });
+
+                    document.getElementById('input-time').addEventListener('change',function(event){
+                        //zdarzenie po zakonczeniu edycji
+
+                        var timeText = event.target.value;
 
                         window.cppBackend.setResetTimeSec(timeText, function (returnValue) {
 
@@ -100,39 +125,9 @@
                         });
 
 
-                        //----------jQuery version
-                        // var timeText = $('#input-time').val();
-                        // // 3. Wywołujemy C++ i odbieramy bool w callbacku (to zostaje bez zmian)
-                        // window.cppBackend.setResetTimeSec(timeText, function (returnValue) {
-
-                        //     // 4. Wypisujemy to co zwróciło C++ (true/false) na konsolę
-                        //     console.log("Wynik parsowania w C++: " + returnValue);
-
-                        //     // 5. Jeśli się udało (true), to czyścimy pole tekstowe (w jQuery przekazujemy pusty string do .val(''))
-                        //     if (returnValue === true) {
-                        //         console.log("Ustawiono nowy czas!");
-                        //         $('#laplist').append("Ustawiono nowy czas!" + '<br>');
-                        //     } else {
-                        //         console.error("Błąd! C++ nie potrafiło sparsować wpisanego czasu.");
-                        //         $('#laplist').append("Błąd! C++ nie potrafiło sparsować wpisanego czasu." + '<br>');
-                        //     }
-                        // });
-
-                        window.cppBackend.start();
                     });
 
-                    document.getElementById('btn-stop').addEventListener('click', function () {
-                        window.cppBackend.stop();
-                    });
 
-                    document.getElementById('btn-reset').addEventListener('click', function () {
-                        window.cppBackend.reset();
-                        //document.getElementById('input-time').value = window.cppBackend.counter;
-                    });
-
-                    document.getElementById('btn-lap').addEventListener('click', function () {
-                        window.cppBackend.addLap();
-                    })
 
                 });
             }
@@ -150,11 +145,34 @@
             <!--            <h1 style='align-self: center'>Hello from html!</h1>-->
             <h1 class='counter' hidden>0</h1>
 
+
+
+            <div class="skill">
+                <div class="outer">
+                    <div class="inner">
+
+
             <form id="form-set-time" style="text-align: center;">
                 <input class='normal-input' type="number" min="0" step="1" id="input-time">
                 <!-- <br>
                 <button type="submit" class='normal-button'>Set time</button> -->
             </form>
+
+
+                    </div>
+                </div>
+
+                <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="160px" height="160px">
+                    <defs>
+                        <linearGradient id="GradientColor">
+                            <stop offset="0%" stop-color="#DA22FF" />
+                            <stop offset="100%" stop-color="#9733EE" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="80" cy="80" r="70" stroke-linecap="round" pathLength="100" />
+                </svg>
+
+            </div>
 
         </div>
 
