@@ -11,7 +11,7 @@
   --mobile-bg: #ffffff;   /* Tło samego "telefonu" (białe) */
 
   --circle-progress-size: 270px;
-  --circle-progress-thickness: 10px;
+  --circle-progress-thickness: 3px;
   --circle-progress-percent: 20;
 }
 
